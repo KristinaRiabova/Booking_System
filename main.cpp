@@ -1,7 +1,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
+#include <fstream>
+#include <sstream>
+#include <map>
+#include <algorithm>
 
 class Ticket {
 private:
@@ -166,4 +169,144 @@ public:
         std::cout << "Total Seats: " << totalseats << std::endl;
     }
 
+};
+class FileHandler {
+public:
+    static bool readFile(const std::string& fileName, std::vector<std::string>& lines) {
+        std::ifstream file(fileName);
+        if (!file.is_open()) {
+            std::cout << "Error: Unable to open the file: " << fileName << std::endl;
+            return false;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (!line.empty()) {
+                lines.push_back(line);
+            }
+        }
+
+        file.close();
+        return true;
+    }
+
+    static bool writeFile(const std::string& fileName, const std::vector<std::string>& lines) {
+        std::ofstream file(fileName);
+        if (!file.is_open()) {
+            std::cout << "Error: Unable to open the file for writing: " << fileName << std::endl;
+            return false;
+        }
+
+        for (const std::string& line : lines) {
+            file << line << '\n';
+        }
+
+        file.close();
+        return true;
+    }
+};
+class ConfigReader {
+private:
+    FileHandler fileHandler;
+    std::string fileName;
+
+public:
+    ConfigReader(const std::string& configFileName) : fileName(configFileName) {}
+
+    bool readConfig(std::vector<Airplane>& airplanes) {
+        std::vector<std::string> lines;
+
+        if (!fileHandler.readFile(fileName, lines)) {
+            std::cout << "Error: Unable to read the configuration file." << std::endl;
+            return false;
+        }
+
+        for (const std::string& line : lines) {
+            std::istringstream ss(line);
+            std::string date, flightNumber;
+            int seatsPerRow;
+
+            std::map<int, int> seatPrices;
+
+
+            int rangeStart1, rangeEnd1, price1, rangeStart2, rangeEnd2, price2;
+
+
+            std::vector<std::string> tokens;
+            std::string token;
+            while (ss >> token) {
+                if (token.find('-') != std::string::npos) {
+                    // Handle ranges by splitting them into two separate tokens
+                    std::istringstream rangeStream(token);
+                    std::string rangeToken;
+                    while (std::getline(rangeStream, rangeToken, '-')) {
+                        tokens.push_back(rangeToken);
+                    }
+                } else {
+                    tokens.push_back(token);
+                }
+            }
+
+
+            if (tokens.size() != 9) {
+                std::cerr << "Invalid configuration line: " << line << std::endl;
+                continue;
+            }
+
+
+            std::cout << "Processing line: " << line << std::endl;
+
+            date = tokens[0];
+            flightNumber = tokens[1];
+            seatsPerRow = std::stoi(tokens[2]);
+            rangeStart1 = std::stoi(tokens[3]);
+            rangeEnd1 = std::stoi(tokens[4]);
+
+            // Remove '$' and convert to int
+            std::string price1_str = tokens[5];
+            price1_str.erase(std::remove(price1_str.begin(), price1_str.end(), '$'), price1_str.end());
+
+            try {
+                price1 = std::stoi(price1_str, nullptr);
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "Invalid price format: " << price1_str << std::endl;
+                continue; // Skip to the next line
+            }
+
+            // Add the new range and price to the seatPrices map
+            for (int seat = rangeStart1; seat <= rangeEnd1; seat++) {
+                seatPrices[seat] = price1;
+            }
+
+            rangeStart2 = std::stoi(tokens[6]);
+            rangeEnd2 = std::stoi(tokens[7]);
+
+
+            std::string price2_str = tokens[8];
+            price2_str.erase(std::remove(price2_str.begin(), price2_str.end(), '$'), price2_str.end());
+
+            try {
+                price2 = std::stoi(price2_str, nullptr);
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "Invalid price format: " << price2_str << std::endl;
+                continue; // Skip to the next line
+            }
+
+            // Add the second range and price to the seatPrices map
+            for (int seat = rangeStart2; seat <= rangeEnd2; seat++) {
+                seatPrices[seat] = price2;
+            }
+            for (int seat = rangeStart1; seat <= rangeEnd1; seat++) {
+                seatPrices[seat] = price1;
+            }
+
+            for (int seat = rangeStart2; seat <= rangeEnd2; seat++) {
+                seatPrices[seat] = price2;
+            }
+
+            airplanes.push_back(Airplane(date, flightNumber, seatsPerRow, rangeStart1, rangeEnd1, price1, rangeStart2, rangeEnd2, price2));
+        }
+
+        return true;
+    }
 };
