@@ -170,6 +170,8 @@ public:
     }
 
 };
+
+
 class FileHandler {
 public:
     static bool readFile(const std::string& fileName, std::vector<std::string>& lines) {
@@ -205,6 +207,7 @@ public:
         return true;
     }
 };
+
 class ConfigReader {
 private:
     FileHandler fileHandler;
@@ -310,6 +313,7 @@ public:
         return true;
     }
 };
+
 class BookingSystem {
 private:
     std::vector<Airplane> airplanes;
@@ -405,3 +409,70 @@ public:
     }
 
 };
+class CommandLineInterface {
+public:
+    void showMenu() {
+        std::cout << "===== Booking System Menu =====\n"
+                  << "1. Check seat availability\n"
+                  << "2. Book a ticket\n"
+                  << "3. Return a ticket\n"
+                  << "4. View booked tickets by ID\n"
+                  << "5. View booked tickets by username\n"
+                  << "6. Exit\n"
+                  << "==============================\n";
+    }
+
+    void processCommand(const std::string& command) {
+        if (command == "1") {
+            std::string date, flightNumber;
+            std::cout << "Enter date and flight number (e.g., 1.12.23 FR12): ";
+            std::cin >> date >> flightNumber;
+            bookingSystem.checkAvailability(date, flightNumber);
+        } else if (command == "2") {
+            std::string date, flightNumber, seat, username;
+            std::cout << "Enter date, flight number, seat, and username: ";
+            std::cin >> date >> flightNumber >> seat >> username;
+            bookingSystem.bookTicket(date, flightNumber, seat, username);
+        } else if (command == "3") {
+            int confirmationID;
+            std::cout << "Enter confirmation ID: ";
+            std::cin >> confirmationID;
+            bookingSystem.returnTicket(confirmationID);
+        } else if (command == "4") {
+            int confirmationID;
+            std::cout << "Enter confirmation ID: ";
+            std::cin >> confirmationID;
+            bookingSystem.viewBookedTickets(confirmationID);
+        } else if (command == "5") {
+            std::string username;
+            std::cout << "Enter username: ";
+            std::cin >> username;
+            bookingSystem.viewBookedTicketsByUsername(username);
+        } else if (command == "6") {
+            std::cout << "Exiting the program. Thank you!\n";
+            exit(0);
+        } else {
+            std::cout << "Invalid command. Please enter a number from the menu.\n";
+        }
+    }
+
+    void run() {
+        while (true) {
+            showMenu();
+            std::string command;
+            std::cout << "Enter command number: ";
+            std::cin >> command;
+            processCommand(command);
+        }
+    }
+
+private:
+    BookingSystem bookingSystem{"airplane_config.txt"};
+};
+
+int main() {
+    CommandLineInterface cli;
+    cli.run();
+
+    return 0;
+}
