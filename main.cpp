@@ -310,3 +310,98 @@ public:
         return true;
     }
 };
+class BookingSystem {
+private:
+    std::vector<Airplane> airplanes;
+    std::vector<Ticket> bookedTickets;
+    int bookingConfirmationID = 1;
+    FileHandler fileHandler;
+
+public:
+    BookingSystem(const std::string& configFileName) : fileHandler() {
+        ConfigReader configReader(configFileName);
+        configReader.readConfig(airplanes);
+    }
+
+
+    void checkAvailability(const std::string& date, const std::string& flightNumber) {
+        for (const Airplane& airplane : airplanes) {
+            if (airplane.getDate() == date && airplane.getFlightNumber() == flightNumber) {
+                airplane.displayAvailableSeats();
+                return;
+            }
+        }
+        std::cout << "Flight not found." << std::endl;
+    }
+
+    bool bookTicket(const std::string& date, const std::string& flightNumber, const std::string& seat, const std::string& passengerName) {
+        for (Airplane& airplane : airplanes) {
+            if (airplane.getDate() == date && airplane.getFlightNumber() == flightNumber) {
+                int row = std::stoi(seat.substr(0, seat.size() - 1));
+                int seatNumber = seat[seat.size() - 1] - 'A' + 1;
+                if (airplane.isSeatAvailable(row, seatNumber)) {
+                    if (airplane.bookSeat(row, seatNumber)) {
+                        int price = airplane.getPriceForSeat(row, seatNumber);
+                        Ticket ticket(passengerName, row, seatNumber, date, flightNumber, price, bookingConfirmationID);
+                        bookedTickets.push_back(ticket);
+                        std::cout << "Confirmed with ID: " << bookingConfirmationID << std::endl;
+                        bookingConfirmationID++;
+                        return true;
+                    }
+                }
+            }
+        }
+        std::cout << "Failed to book the ticket. Flight or seat not found or seat is already booked." << std::endl;
+        return false;
+    }
+
+    void returnTicket(int confirmationID) {
+        auto it = std::find_if(bookedTickets.begin(), bookedTickets.end(),
+                               [confirmationID](const Ticket& ticket) {
+                                   return ticket.getConfirmationID() == confirmationID;
+                               });
+
+        if (it != bookedTickets.end() && !it->getIsReturned()) {
+            // Refund the price and make the seat available again
+            for (Airplane& airplane : airplanes) {
+                if (airplane.getDate() == it->getDate() && airplane.getFlightNumber() == it->getFlightNumber()) {
+                    int row = it->getRow();
+                    int seatNumber = it->getSeat();
+                    airplane.setSeatPrice(row, seatNumber, it->getPrice());
+                    airplane.setSeatAvailability(row, seatNumber, true); // Make the seat available again
+                    break;
+                }
+            }
+
+            std::cout << "Confirmed refund for " << it->getPassengerName() << ": $" << it->getPrice() << std::endl;
+
+
+            it->setReturned();
+        } else {
+            std::cout << "Confirmation ID not found or ticket already returned." << std::endl;
+        }
+    }
+
+    void viewBookedTickets(int confirmationID) {
+        for (const Ticket& ticket : bookedTickets) {
+            if (ticket.getConfirmationID() == confirmationID) {
+                std::cout << "Flight " << ticket.getFlightNumber() << ", " << ticket.getDate()
+                          << ", seat " << ticket.getRow() << static_cast<char>('A' + ticket.getSeat() - 1)
+                          << ", price " << ticket.getPrice() << "$, " << ticket.getPassengerName() << std::endl;
+                return;
+            }
+        }
+        std::cout << "Confirmation ID not found." << std::endl;
+    }
+
+    void viewBookedTicketsByUsername(const std::string& username) {
+        for (const Ticket& ticket : bookedTickets) {
+            if (ticket.getPassengerName() == username) {
+                std::cout << "Flight " << ticket.getFlightNumber() << ", " << ticket.getDate()
+                          << ", seat " << ticket.getRow() << static_cast<char>('A' + ticket.getSeat() - 1)
+                          << ", price " << ticket.getPrice() << "$" << std::endl;
+            }
+        }
+    }
+
+};
