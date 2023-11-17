@@ -3,7 +3,7 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
-#include <map>
+#include <tuple>
 #include <algorithm>
 
 class Ticket {
@@ -66,39 +66,50 @@ private:
     std::string date;
     std::string flightNumber;
     int seatsPerRow;
-    int rangeStart1, rangeEnd1, price1, rangeStart2, rangeEnd2, price2;
+    std::vector<std::tuple<int, int, int>> seatRanges;
     std::vector<std::vector<bool>> seatAvailability;
     std::vector<std::vector<int>> seatPrices;
-    int totalrows;
-    int totalseats;
+    int totalRows;
+
 
 public:
-    Airplane(const std::string &date, const std::string &flightNumber, int seatsPerRow,
-             int rangeStart1, int rangeEnd1, int price1,
-             int rangeStart2, int rangeEnd2, int price2)
-            : date(date), flightNumber(flightNumber), seatsPerRow(seatsPerRow),
-              rangeStart1(rangeStart1), rangeEnd1(rangeEnd1), price1(price1),
-              rangeStart2(rangeStart2), rangeEnd2(rangeEnd2), price2(price2) {
-        seatAvailability.resize(rangeEnd2, std::vector<bool>(seatsPerRow, true));
-        seatPrices.resize(rangeEnd2, std::vector<int>(seatsPerRow, 0));
-        totalrows = rangeEnd2;
-        totalseats = seatsPerRow * rangeEnd2;
+    Airplane(const std::string& date, const std::string& flightNumber, int seatsPerRow, const std::vector<std::tuple<int, int, int>>& seatRanges)
+            : date(date), flightNumber(flightNumber), seatsPerRow(seatsPerRow), seatRanges(seatRanges) {
 
-        for (int row = 1; row <= totalrows; ++row) {
-            for (int seat = 1; seat <= seatsPerRow; ++seat) {
-                int price;
-                if (row >= rangeStart1 && row <= rangeEnd1) {
-                    price = price1;
-                } else if (row >= rangeStart2) {
-                    price = price2;
-                } else {
-                    std::cerr << "Invalid seat range for seat " << seat << " in row " << row << std::endl;
-                    continue;
+
+        totalRows = 0;
+        for (const auto& range : seatRanges) {
+            totalRows += std::get<1>(range) - std::get<0>(range) + 1;
+        }
+        std::cout << "Debug: Total Rows calculated: " << totalRows << std::endl;
+
+
+
+        seatAvailability.resize(totalRows, std::vector<bool>(seatsPerRow, true));
+        seatPrices.resize(totalRows, std::vector<int>(seatsPerRow, 0));
+
+        int currentRow = 0;
+
+        for (const auto& range : seatRanges) {
+            int rangeStart = std::get<0>(range);
+            int rangeEnd = std::get<1>(range);
+            int price = std::get<2>(range);
+
+            for (int row = rangeStart; row <= rangeEnd; ++row) {
+                for (int seat = 1; seat <= seatsPerRow; ++seat) {
+                    seatPrices[currentRow][seat - 1] = price;
                 }
-                seatPrices[row - 1][seat - 1] = price;
+                ++currentRow;
             }
         }
+
+
     }
+
+
+
+
+
 
     std::string getDate() const {
         return date;
@@ -109,20 +120,20 @@ public:
     }
 
     bool isSeatAvailable(int row, int seatNumber) const {
-        if (row >= 1 && row <= totalrows && seatNumber >= 1 && seatNumber <= seatsPerRow) {
+        if (row >= 1 && row <= totalRows && seatNumber >= 1 && seatNumber <= seatsPerRow) {
             return seatAvailability[row - 1][seatNumber - 1];
         }
         return false;
     }
 
     void setSeatAvailability(int row, int seatNumber, bool availability) {
-        if (row >= 1 && row <= totalrows && seatNumber >= 1 && seatNumber <= seatsPerRow) {
+        if (row >= 1 && row <= totalRows && seatNumber >= 1 && seatNumber <= seatsPerRow) {
             seatAvailability[row - 1][seatNumber - 1] = availability;
         }
     }
 
     void setSeatPrice(int row, int seatNumber, int price) {
-        if (row >= 1 && row <= totalrows && seatNumber >= 1 && seatNumber <= seatsPerRow) {
+        if (row >= 1 && row <= totalRows && seatNumber >= 1 && seatNumber <= seatsPerRow) {
             seatPrices[row - 1][seatNumber - 1] = price;
         }
     }
@@ -138,36 +149,37 @@ public:
     }
 
     int getPriceForSeat(int row, int seatNumber) const {
-        if (row >= 1 && row <= totalrows) {
+        if (row >= 1 && row <= totalRows) {
             return seatPrices[row - 1][seatNumber - 1];
         }
         return -1;
     }
 
     void displayAvailableSeats() const {
-        std::cout << date << " " << flightNumber << ":\n";
+        std::cout << "Displaying available seats for " << date << " " << flightNumber << ":\n";
 
-        int seatCounter = 1; // Counter for seat numbers
+        int seatCounter = 1;
 
-        for (int row = 1; row <= totalrows; ++row) {
+        for (int row = 1; row <= totalRows; ++row) {
             for (int seat = 1; seat <= seatsPerRow; ++seat) {
                 char seatLabel = 'A' + (seat - 1);
 
+
+
                 if (isSeatAvailable(row, seat)) {
                     int price = getPriceForSeat(row, seat);
-                    std::cout << seatCounter << seatLabel << " $" << price << "  ";
+                    std::cout<< row << seatLabel << " - " << price << "$ ";
+                    seatCounter++;
                 } else {
                     std::cout << "BOOKED ";
                 }
-
-                seatCounter++;
             }
             std::cout << std::endl;
         }
 
-        std::cout << "Total Rows: " << totalrows << std::endl;
-        std::cout << "Total Seats: " << totalseats << std::endl;
+        std::cout << "Debug: Total Rows: " << totalRows << std::endl;
     }
+
 
 };
 
@@ -224,16 +236,14 @@ public:
             return false;
         }
 
-        for (const std::string& line : lines) {
+
+
+            for (const std::string& line : lines) {
             std::istringstream ss(line);
             std::string date, flightNumber;
             int seatsPerRow;
 
-            std::map<int, int> seatPrices;
-
-
-            int rangeStart1, rangeEnd1, price1, rangeStart2, rangeEnd2, price2;
-
+            int rangeStart, rangeEnd, price;
 
             std::vector<std::string> tokens;
             std::string token;
@@ -250,64 +260,35 @@ public:
                 }
             }
 
-
-            if (tokens.size() != 9) {
+            if (tokens.size() % 3 != 0) {
                 std::cerr << "Invalid configuration line: " << line << std::endl;
                 continue;
             }
 
-
-            std::cout << "Processing line: " << line << std::endl;
-
             date = tokens[0];
             flightNumber = tokens[1];
             seatsPerRow = std::stoi(tokens[2]);
-            rangeStart1 = std::stoi(tokens[3]);
-            rangeEnd1 = std::stoi(tokens[4]);
 
-            // Remove '$' and convert to int
-            std::string price1_str = tokens[5];
-            price1_str.erase(std::remove(price1_str.begin(), price1_str.end(), '$'), price1_str.end());
+            std::vector<std::tuple<int, int, int>> seatRanges;
 
-            try {
-                price1 = std::stoi(price1_str, nullptr);
-            } catch (const std::invalid_argument& e) {
-                std::cerr << "Invalid price format: " << price1_str << std::endl;
-                continue; // Skip to the next line
+            for (size_t i = 3; i < tokens.size(); i += 3) {
+                rangeStart = std::stoi(tokens[i]);
+                rangeEnd = std::stoi(tokens[i + 1]);
+
+                std::string priceStr = tokens[i + 2];
+                priceStr.erase(std::remove(priceStr.begin(), priceStr.end(), '$'), priceStr.end());
+
+                try {
+                    price = std::stoi(priceStr, nullptr);
+                } catch (const std::invalid_argument& e) {
+                    std::cerr << "Invalid price format: " << priceStr << std::endl;
+                    continue; // Skip to the next line
+                }
+
+                seatRanges.emplace_back(rangeStart, rangeEnd, price);
             }
 
-            // Add the new range and price to the seatPrices map
-            for (int seat = rangeStart1; seat <= rangeEnd1; seat++) {
-                seatPrices[seat] = price1;
-            }
-
-            rangeStart2 = std::stoi(tokens[6]);
-            rangeEnd2 = std::stoi(tokens[7]);
-
-
-            std::string price2_str = tokens[8];
-            price2_str.erase(std::remove(price2_str.begin(), price2_str.end(), '$'), price2_str.end());
-
-            try {
-                price2 = std::stoi(price2_str, nullptr);
-            } catch (const std::invalid_argument& e) {
-                std::cerr << "Invalid price format: " << price2_str << std::endl;
-                continue; // Skip to the next line
-            }
-
-            // Add the second range and price to the seatPrices map
-            for (int seat = rangeStart2; seat <= rangeEnd2; seat++) {
-                seatPrices[seat] = price2;
-            }
-            for (int seat = rangeStart1; seat <= rangeEnd1; seat++) {
-                seatPrices[seat] = price1;
-            }
-
-            for (int seat = rangeStart2; seat <= rangeEnd2; seat++) {
-                seatPrices[seat] = price2;
-            }
-
-            airplanes.push_back(Airplane(date, flightNumber, seatsPerRow, rangeStart1, rangeEnd1, price1, rangeStart2, rangeEnd2, price2));
+            airplanes.push_back(Airplane(date, flightNumber, seatsPerRow, seatRanges));
         }
 
         return true;
