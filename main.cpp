@@ -116,7 +116,9 @@ public:
     }
 
     std::string getFlightNumber() const {
+
         return flightNumber;
+
     }
 
     bool isSeatAvailable(int row, int seatNumber) const {
@@ -194,6 +196,7 @@ public:
         }
 
         std::string line;
+        std::getline(file, line);
         while (std::getline(file, line)) {
             if (!line.empty()) {
                 lines.push_back(line);
@@ -244,21 +247,20 @@ public:
             int seatsPerRow;
 
             int rangeStart, rangeEnd, price;
-
-            std::vector<std::string> tokens;
-            std::string token;
-            while (ss >> token) {
-                if (token.find('-') != std::string::npos) {
-                    // Handle ranges by splitting them into two separate tokens
-                    std::istringstream rangeStream(token);
-                    std::string rangeToken;
-                    while (std::getline(rangeStream, rangeToken, '-')) {
-                        tokens.push_back(rangeToken);
+                std::vector<std::string> tokens;
+                std::string token;
+                while (ss >> token) {
+                    if (token.find('-') != std::string::npos) {
+                        std::istringstream rangeStream(token);
+                        std::string rangeToken;
+                        while (std::getline(rangeStream, rangeToken, '-')) {
+                            tokens.push_back(std::move(rangeToken));
+                        }
+                    } else {
+                        tokens.push_back(std::move(token));
                     }
-                } else {
-                    tokens.push_back(token);
                 }
-            }
+
 
             if (tokens.size() % 3 != 0) {
                 std::cerr << "Invalid configuration line: " << line << std::endl;
@@ -282,7 +284,7 @@ public:
                     price = std::stoi(priceStr, nullptr);
                 } catch (const std::invalid_argument& e) {
                     std::cerr << "Invalid price format: " << priceStr << std::endl;
-                    continue; // Skip to the next line
+                    continue;
                 }
 
                 seatRanges.emplace_back(rangeStart, rangeEnd, price);
